@@ -1,22 +1,23 @@
-function [P, p, cl_id] = MoG2D(DataSet, EMit)
-% This functions assigns cluster ids to the simulated data 'dataset' using a 
+function [P, p, cl_id] = MoG2D(DataSet, J, EMit)
+% This functions assigns cluster ids to the simulated data 'DataSet' using a 
 % mixture of Gaussians model. 
 
     % load data
     load(DataSet);
     
-    J = 2;                      % define number of cluster
+    
     T = length(V(:,1));         % experiment length
     D = length(V(1,:));         % dimensionality of data
     K = 1;                      % scaling factor cov noise cluster
     Tobs = sum(spkt);
     
-    % Parameter Initialization: use simple clustering method (k-means) to
+    
+    % Parameter Initialization: use simple a k-means clustering algorithm to
     % determine the centers u1,...,uJ of J components. Set a1,..,aJ = 1/J;
     % Cv_1,...,Cv_J = eye(D). 
     
-    % use only the times that have an observation for the kmeans algorithm
-    i = 0;
+    % Use only the times that have an observation for the kmeans algorithm
+    i = 0; Nobs = sum(obs_id==1); Vobs = zeros(Nobs, D);
     for t = 1 : T
         if obs_id(t) == 1
             i = i+1;
@@ -24,9 +25,10 @@ function [P, p, cl_id] = MoG2D(DataSet, EMit)
         end
     end
     
-    [IDV, U] = kmeans(Vobs, J);
+    [~, U] = kmeans(Vobs, J);
     
     % initial guesses for neuron cluster
+    P = struct([]);   
     for j = 1 : J
         P(j).a = 1/J;       % clusters' probabilities
         P(1).u = max(U);    % clusters means
@@ -40,12 +42,13 @@ function [P, p, cl_id] = MoG2D(DataSet, EMit)
     
     for idx = 1 : EMit
         
-        % STEP 2: compute a first guess of pj(i) = p(z(i)=j|guessed parameters), where z 
+        % Compute a first guess of pj(i) = p(z(i)=j|guessed parameters), where z 
         % is the identity of the ith waveform and j represents a particular cluster. Then we 
         % have p(j,i) = p(z(i)=j|guessed parameters).
         for i = 1 : T
             if obs_id(i) == 1
                 normalization = 0;
+                mm = zeros(1,J);
                 for j = 1 : J
                     mm(j) = log(P(j).a) - 0.5 * (log(det(P(j).Cv)) + (V(i, :) - P(j).u) * inv(P(j).Cv) * (V(i, :) - P(j).u)');
                 end
@@ -62,7 +65,7 @@ function [P, p, cl_id] = MoG2D(DataSet, EMit)
         end
 
 
-        % STEP 3: with these conditional probabilities update the values of the parameters    
+        % With these conditional probabilities update the values of the parameters    
         for j = 1 : J
             % update the cluster probabilities
             P(j).a = sum(p(j, :)) / Tobs;
@@ -98,7 +101,7 @@ function [P, p, cl_id] = MoG2D(DataSet, EMit)
     cl_id = zeros(size(cluster_id));
     for k = 1 : T
         if obs_id(k) == 1
-            [dummy, I] = max(p(:,k));
+            [~, I] = max(p(:,k));
             for j = 1 : J
                 if (I == j) ~= 0 
                     cl_id(k) = j;

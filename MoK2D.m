@@ -1,8 +1,7 @@
-function MoK2D2n
-    % Load data set
+function MoK2D
+    
     DataSet = 'SynDat3s_2n_v1.mat';
     load(DataSet);
-
     Y = V;
     clear V;
 
@@ -11,23 +10,23 @@ function MoK2D2n
     T           = length(Y(:,1));        % experiment length
     ss          = 2;                     % state size
     em_iters    = 20;                    % number of Em iterations for the GMM
-    EM_iters    = 10;                    % number of EM iterations for the KFMM
+    EM_iters    = 20;                    % number of EM iterations for the KFMM
 
     % Structure to store the results
-    P = struct([]);
+    P = struct([]); P_new = struct([]);
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
     % Initialization
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    % Parameter initialization: use GMMto make a first guess of the
-    % cluster ids. All the true parameters are given to the algorithm.
+    % Parameter initialization: use a Gaussian Mixture Model (MoG) to make a first 
+    % guess of the clusters' ids. 
     disp('Initializing : running MoG ...');
 
-    [initP, initp] = MoG2D(DataSet, em_iters);
+    [initP, initp] = MoG2D(DataSet, J, em_iters);
 
     for j = 1 : J
-        P(j).Q = Cu;                    % system covariance
+        P(j).Q = Cu;                        % system covariance
         for t = 1 : T
             P(j).x(:,t) = initP(j).u;
             P(j).V(:, :, t) = initP(j).Cv;  % initial guess for the state covariance  
@@ -51,7 +50,7 @@ function MoK2D2n
     % EM RECURSION 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     disp('running MoK ...');
-    conv_KF = [];
+    %conv_KF = [];
 
     for iter = 1 : EM_iters
 
@@ -59,7 +58,7 @@ function MoK2D2n
         cl_id = zeros(size(cluster_id));
         for k = 1 : T
             if obs_id(k) == 1
-                [dummy, I] = max(p(:,k));
+                [~, I] = max(p(:,k));
                 for j = 1 : J
                     if (I == j) ~= 0 
                         cl_id(k) = j;
@@ -71,7 +70,7 @@ function MoK2D2n
             end
         end
 
-        cl_idKF = cl_id;
+        %cl_idKF = cl_id;
 
         % Forward step for updating the means
         for j = 1 : J
@@ -138,9 +137,7 @@ function MoK2D2n
                  p(:, t) = p(:, t) / normalization; 
             end
             if obs_id(t) == -1
-                % if there is no observation at t, put anything here,
-                % just for the sake of having something there, but it
-                % is not going to be used.
+                % if there is no observation at t...
                 p(:, t) = [0, 0];
             end
         end    
@@ -153,7 +150,7 @@ function MoK2D2n
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     disp('Terminating...');
 
-    % Compute error bars for the means estimates
+    % Compute error bars for the means' estimates
     iV = zeros(J, J, T);
     for j = 1 : J
         for t = 1 : T 
@@ -169,7 +166,7 @@ function MoK2D2n
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     figure;
-    % plot data with ids as given by initial guess of p    
+    % Plot data with ids as given by initial guess of p    
     subplot(1,3,1);
     for i = 1 : T
         if (initp(1, i) > 0.5)
@@ -184,8 +181,9 @@ function MoK2D2n
     title('MoG ids');
     error_ellipse(initP(1).Cv, initP(1).u);
     error_ellipse(initP(2).Cv, initP(2).u);
+    xlabel('PC 1 score'); ylabel('PC 2 score');
 
-    % plot data with estimated ids
+    % Plot data with estimated ids
     subplot(1,3,2);    
     for i = 1 : T
         if (cl_id(i) == 1) ~=0
@@ -203,7 +201,7 @@ function MoK2D2n
     end
     title('MoK ids');
 
-    % plot data with true ids
+    % Plot data with true ids
     subplot(1,3,3);
     for k = 1 : T
         if (cluster_id(k) == 1) ~= 0

@@ -1,4 +1,4 @@
-function MoKhmm2D2n
+function MoKhmm2D
     clear all;
 
     % Load data set
@@ -8,7 +8,7 @@ function MoKhmm2D2n
     clear V;
     
     % Define parameters and auxiliary structures
-    EM_iters = 10;               % number of EM iterations       
+    EM_iters = 20;               % number of EM iterations       
     ss       = 2;                % number of cells
     J        = 2;                % number of clusters
     T        = length(Y(:,1));   % experiment length
@@ -19,12 +19,12 @@ function MoKhmm2D2n
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%    
     
     % Structure to store the results
-    P = struct([]);
+    P = struct([]); P_new = struct([]);
 
     % Parameter initialization: use MoG model to make a first guess of the
     % cluster ids. 
     disp('Initialization: running MoG ...')
-    [GMMP, GMMp, cl_id] = MoG2D(DataSet, 20);
+    [GMMP, GMMp, cl_id] = MoG2D(DataSet, J, EM_iters);
     
     for j = 1 : J
         P(j).R = GMMP(j).Cv;                % observation covariance
@@ -96,7 +96,7 @@ function MoKhmm2D2n
         cl_id = zeros(size(cluster_id));
         for k = 1 : T
             if obs_id(k) == 1
-                [dummy, I] = max(p(:,k));
+                [~, I] = max(p(:,k));
                 for j = 1 : J
                     if (I == j) ~= 0 
                         cl_id(k) = j;
@@ -111,7 +111,7 @@ function MoKhmm2D2n
         % assign state ids
         StateIdxs = zeros(1, T);
         for t = ti : T
-            [dummy I] = max(pq(t,:));
+            [~, I] = max(pq(t,:));
             StateIdxs(t) = I;
         end
 
@@ -303,6 +303,7 @@ function MoKhmm2D2n
     title('MoG ids');
     error_ellipse(GMMP(1).Cv, GMMP(1).u);
     error_ellipse(GMMP(2).Cv, GMMP(2).u);
+    xlabel('PC 1 score'); ylabel('PC 2 score');
   
     % plot data with MoKhmm ids
     subplot(1,3,2);    
